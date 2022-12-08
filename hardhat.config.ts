@@ -30,6 +30,10 @@ const config: HardhatUserConfig = {
     polygon: {
       url: node_url('polygon'),
       accounts: accounts()
+    },
+    spikeDev: {
+      url: node_url('spikeDev'),
+      accounts: accounts()
     }
   }
 };
