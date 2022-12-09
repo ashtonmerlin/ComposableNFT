@@ -7,10 +7,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 	
 	const {deployer} = await getNamedAccounts();
 
-	const name = "ComposableNFT";
-	const symbol = "ComposableNFT";
+	const name = "ERC721Item";
+	const symbol = "ERC721Item";
 
-	await deploy('ComposableNFT', {
+	await deploy('ERC721Item', {
 		from: deployer,
 		args: [name, symbol],
 		log: true,
@@ -18,5 +18,5 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 	});
 };
 export default func;
-func.tags = ['ComposableNFT'];
+func.tags = ['ERC721Item'];
 
