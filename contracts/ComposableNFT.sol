@@ -27,6 +27,8 @@ contract ComposableNFT is ERC721Item {
 
 
     event NewSlot(uint slotId, address assetTokenAddress);
+    event AttachSlotAsset(uint tokenId, uint slotId, uint slotAssetTokenId, uint slotAssetAmount);
+    event DetachSlotAsset(uint tokenId, uint slotId, uint slotAssetTokenId, uint slotAssetAmount);
 
     constructor(string memory name, string memory symbol) ERC721Item(name, symbol) {}
 
@@ -77,6 +79,8 @@ contract ComposableNFT is ERC721Item {
                 tokenSlotsData[tokenId][slotId] = slotAssetTokenId;
                 tokenSlotsFilled[tokenId][slotId] = true;
             }
+
+            emit AttachSlotAsset(tokenId, slotId, slotAssetTokenId, amount);
             return;
         }
 
@@ -86,6 +90,9 @@ contract ComposableNFT is ERC721Item {
             tokenSlotsData[tokenId][slotId] = slotAssetTokenId;
             tokenSlotsBalance[tokenId][slotId] = 1;
             tokenSlotsFilled[tokenId][slotId] = true;
+
+            emit AttachSlotAsset(tokenId, slotId, slotAssetTokenId, amount);
+            return;
         }
     }
 
@@ -100,6 +107,8 @@ contract ComposableNFT is ERC721Item {
             tokenSlotsFilled[tokenId][slotId] = false;
             tokenSlotsBalance[tokenId][slotId] = 0;
             tokenSlotsData[tokenId][slotId] = 0;
+
+            emit DetachSlotAsset(tokenId, slotId, tokenSlotsData[tokenId][slotId], tokenSlotsBalance[tokenId][slotId]);
             return;
         }
 

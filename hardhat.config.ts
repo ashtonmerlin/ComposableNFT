@@ -22,6 +22,7 @@ const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
+      gas: 5000000,
     },
     polygonTestnet: {
       url: node_url('polygonTestnet'),
@@ -34,7 +35,13 @@ const config: HardhatUserConfig = {
     spikeDev: {
       url: node_url('spikeDev'),
       accounts: accounts()
-    }
+    },
+    goerli: {
+      url: node_url('goerli'),
+      accounts: accounts(),
+      gas: 5000000,
+      gasMultiplier: 1.5
+    },
   }
 };
 

@@ -7,16 +7,17 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 	
 	const {deployer} = await getNamedAccounts();
 
-	const name = "ComposableNFT";
-	const symbol = "ComposableNFT";
+	const name = "SVGComposableNFT";
+	const symbol = "SVGComposableNFT";
 
-	await deploy('ComposableNFT', {
+	await deploy('SVGComposableNFT', {
 		from: deployer,
+		gasLimit: 5000000,
 		args: [name, symbol],
 		log: true,
 		autoMine: true // speed up deployment on local network (ganache, hardhat), no effect on live networks
 	});
 };
 export default func;
-func.tags = ['ComposableNFT'];
+func.tags = ['SVGComposableNFT'];
 

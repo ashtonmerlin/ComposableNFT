@@ -35,7 +35,7 @@ contract ERC721Item is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     }
 
     function tokenURI(uint256 tokenId)
-        public
+        public virtual
         view
         override(ERC721, ERC721URIStorage)
         returns (string memory)
