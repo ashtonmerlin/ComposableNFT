@@ -13,6 +13,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 	await deploy('ERC721Item', {
 		from: deployer,
 		gasLimit: 5000000,
+		gasPrice: "5000000000",
 		args: [name, symbol],
 		log: true,
 		autoMine: true // speed up deployment on local network (ganache, hardhat), no effect on live networks

@@ -5,10 +5,12 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "@openzeppelin/contracts/interfaces/IERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC1155.sol";
+import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 import "./ERC721Item.sol";
 
-contract ComposableNFT is ERC721Item {
+contract ComposableNFT is ERC721Item, ERC721Holder, ERC1155Holder {
     struct SlotInfo {
         uint slotId;
         address slotAssetAddress;
@@ -32,8 +34,10 @@ contract ComposableNFT is ERC721Item {
 
     constructor(string memory name, string memory symbol) ERC721Item(name, symbol) {}
 
-    // Only allow contract owner to configure slot?
-    // Different slot could use the same asset token contract?
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155Receiver, ERC721Item) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
     function configureSlot(uint slotId, address assetTokenAddress) public onlyOwner {
         require(ERC165Checker.supportsInterface(assetTokenAddress, type(IERC721).interfaceId) || 
                 ERC165Checker.supportsInterface(assetTokenAddress, type(IERC1155).interfaceId), "Invalid asset address");
@@ -62,7 +66,7 @@ contract ComposableNFT is ERC721Item {
         }
     }
 
-    function attach(uint tokenId, uint slotId, uint slotAssetTokenId, uint amount) external {
+    function attachSlot(uint tokenId, uint slotId, uint slotAssetTokenId, uint amount) external {
         require(msg.sender == ownerOf(tokenId), "Not token owner");
         
         attachInternal(tokenId, slotId, slotAssetTokenId, amount);
@@ -94,25 +98,28 @@ contract ComposableNFT is ERC721Item {
             emit AttachSlotAsset(tokenId, slotId, slotAssetTokenId, amount);
             return;
         }
+
     }
 
-    function detach(uint tokenId, uint slotId) external {
+    function detach(uint tokenId, uint slotId) public {
         address slotAssetAddress = slotAsset[slotId];
         require(slotAssetAddress != address(0x0), "Invliad slot id");
         require(msg.sender == ownerOf(tokenId), "Not token owner");
         require(tokenSlotsFilled[tokenId][slotId], "Slot not filled");
 
         if (is1155AssetSlot(slotId)) {
+            emit DetachSlotAsset(tokenId, slotId, tokenSlotsData[tokenId][slotId], tokenSlotsBalance[tokenId][slotId]);
+
             IERC1155(slotAssetAddress).safeTransferFrom(address(this), msg.sender, tokenSlotsData[tokenId][slotId], tokenSlotsBalance[tokenId][slotId], "");
             tokenSlotsFilled[tokenId][slotId] = false;
             tokenSlotsBalance[tokenId][slotId] = 0;
             tokenSlotsData[tokenId][slotId] = 0;
-
-            emit DetachSlotAsset(tokenId, slotId, tokenSlotsData[tokenId][slotId], tokenSlotsBalance[tokenId][slotId]);
             return;
         }
 
         if (is721AssetSlot(slotId)) {
+            emit DetachSlotAsset(tokenId, slotId, tokenSlotsData[tokenId][slotId], tokenSlotsBalance[tokenId][slotId]);
+
             IERC721(slotAssetAddress).safeTransferFrom(address(this), msg.sender, tokenSlotsData[tokenId][slotId]);
             tokenSlotsFilled[tokenId][slotId] = false;
             tokenSlotsBalance[tokenId][slotId] = 0;
@@ -120,7 +127,12 @@ contract ComposableNFT is ERC721Item {
         }
     }
 
-    function transferFrom(uint fromTokenId, uint toTokenId, uint slotId, uint amount) external {
+    function replace(uint tokenId, uint slotId, uint slotAssetTokenId, uint amount) external {
+        detach(tokenId, slotId);
+        attachInternal(tokenId, slotId, slotAssetTokenId, amount); 
+    }
+
+    function transferSlotAsset(uint fromTokenId, uint toTokenId, uint slotId, uint amount) external {
         require(msg.sender == ownerOf(fromTokenId), "Not token owner");
 
         if (is1155AssetSlot(slotId)) {
@@ -183,6 +195,10 @@ contract ComposableNFT is ERC721Item {
             tokenSlotsInfo[i].slotFilled = tokenSlotsFilled[tokenId][currentSlotId];   
         }
         return tokenSlotsInfo;
+    }
+
+    function slotsLength() external view returns (uint) {
+        return slots.length;
     }
 
     function is1155AssetSlot(uint slotId) public view returns (bool) {
