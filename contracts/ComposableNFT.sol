@@ -9,8 +9,9 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 import "./ERC721Item.sol";
+import "./IComposableNFT.sol";
 
-contract ComposableNFT is ERC721Item, ERC721Holder, ERC1155Holder {
+contract ComposableNFT is IComposableNFT, ERC721Item, ERC721Holder, ERC1155Holder {
     struct SlotInfo {
         uint slotId;
         address slotAssetAddress;
@@ -29,8 +30,6 @@ contract ComposableNFT is ERC721Item, ERC721Holder, ERC1155Holder {
 
 
     event NewSlot(uint slotId, address assetTokenAddress);
-    event AttachSlotAsset(uint tokenId, uint slotId, uint slotAssetTokenId, uint slotAssetAmount);
-    event DetachSlotAsset(uint tokenId, uint slotId, uint slotAssetTokenId, uint slotAssetAmount);
 
     constructor(string memory name, string memory symbol) ERC721Item(name, symbol) {}
 
@@ -120,10 +119,7 @@ contract ComposableNFT is ERC721Item, ERC721Holder, ERC1155Holder {
         if (is721AssetSlot(slotId)) {
             emit DetachSlotAsset(tokenId, slotId, tokenSlotsData[tokenId][slotId], tokenSlotsBalance[tokenId][slotId]);
 
-            IERC721(slotAssetAddress).safeTransferFrom(address(this), msg.sender, tokenSlotsData[tokenId][slotId]);
-            tokenSlotsFilled[tokenId][slotId] = false;
-            tokenSlotsBalance[tokenId][slotId] = 0;
-            tokenSlotsData[tokenId][slotId] = 0;
+            transferFrom(tokenId, msg.sender, slotId, tokenSlotsBalance[tokenId][slotId]);
         }
     }
 
@@ -159,7 +155,7 @@ contract ComposableNFT is ERC721Item, ERC721Holder, ERC1155Holder {
          }
     }
 
-    function transferFrom(uint fromTokenId, address to, uint slotId, uint amount) external {
+    function transferFrom(uint fromTokenId, address to, uint slotId, uint amount) public {
         require(msg.sender == ownerOf(fromTokenId), "Not token owner");
         address slotAssetAddress = slotAsset[slotId];
 
@@ -169,17 +165,19 @@ contract ComposableNFT is ERC721Item, ERC721Holder, ERC1155Holder {
                 tokenSlotsFilled[fromTokenId][slotId] = false;
             }
 
-            IERC1155(slotAssetAddress).safeTransferFrom(address(this),to, tokenSlotsData[fromTokenId][slotId], amount, "");
+            IERC1155(slotAssetAddress).safeTransferFrom(address(this), to, tokenSlotsData[fromTokenId][slotId], amount, "");
             return;
         }
 
          if (is721AssetSlot(slotId)) {
             require(tokenSlotsFilled[fromTokenId][slotId], "Slot already filled");
 
+            uint slotAssetId = tokenSlotsData[fromTokenId][slotId];
             tokenSlotsFilled[fromTokenId][slotId] = false;
             tokenSlotsBalance[fromTokenId][slotId] = 0;
+            tokenSlotsData[fromTokenId][slotId] = 0;
 
-            IERC721(slotAssetAddress).safeTransferFrom(address(this), to, tokenSlotsData[fromTokenId][slotId]);
+            IERC721(slotAssetAddress).safeTransferFrom(address(this), to, slotAssetId);
          }
     }
 
