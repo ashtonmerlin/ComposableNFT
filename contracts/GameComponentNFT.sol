@@ -16,7 +16,6 @@ contract GameComponentNFT is ERC721Enumerable, ERC2981 {
     Counters.Counter private _tokenIdCounter;
 
     struct MintRoyaltyInfo {
-        address payable receiver;
         uint256 mintRoyaltyFee;
         bool mintAllowed;
     }
@@ -62,10 +61,11 @@ contract GameComponentNFT is ERC721Enumerable, ERC2981 {
 
     function mint(string memory _tokenURI, uint256 baseId, uint256 mintRoyaltyFee, uint96 marketRoyaltyFraction, uint256 newUsageFee) external payable {
         if (baseId != 0) {
-            require(ownerOf(baseId) != address(0x0));
+            address baseTokenOwner = ownerOf(baseId);
+            require(baseTokenOwner != address(0x0));
             MintRoyaltyInfo storage mintRoyaltyInfo = tokenMintRoyaltyInfo[baseId];
             require(msg.value == mintRoyaltyInfo.mintRoyaltyFee);
-            Address.sendValue(mintRoyaltyInfo.receiver, msg.value);
+            Address.sendValue(payable(baseTokenOwner), msg.value);
         }
         require(marketRoyaltyFraction < 10000);
         address receiver = msg.sender;
@@ -75,6 +75,7 @@ contract GameComponentNFT is ERC721Enumerable, ERC2981 {
         _setTokenURI(tokenId, _tokenURI);
         _setTokenRoyalty(tokenId, receiver, marketRoyaltyFraction);
         setMintTokenRoyalty(tokenId, mintRoyaltyFee);
+        toggleMintAllowed(tokenId);
         configureUsageFee(tokenId, newUsageFee);
     }
 
@@ -111,17 +112,14 @@ contract GameComponentNFT is ERC721Enumerable, ERC2981 {
     }
 
     function setMintTokenRoyalty(uint256 tokenId, uint256 newMintRoyaltyFee) public {
-        address tokenMinter = tokenMintRoyaltyInfo[tokenId].receiver;
-        require(tokenMinter == address(0x0) || tokenMinter == msg.sender);
+        require(ownerOf(tokenId) == msg.sender, "Not token owner");
 
         emit MintTokenRoyaltyFeeUpdated(tokenId, tokenMintRoyaltyInfo[tokenId].mintRoyaltyFee, newMintRoyaltyFee);
 
-        tokenMintRoyaltyInfo[tokenId].receiver = payable(msg.sender);
         tokenMintRoyaltyInfo[tokenId].mintRoyaltyFee = newMintRoyaltyFee;
-        tokenMintRoyaltyInfo[tokenId].mintAllowed = true;
     }
 
-    function toggleMintAllowed(uint256 tokenId) external {
+    function toggleMintAllowed(uint256 tokenId) public {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
         tokenMintRoyaltyInfo[tokenId].mintAllowed = !tokenMintRoyaltyInfo[tokenId].mintAllowed;
 
@@ -164,6 +162,5 @@ contract GameComponentNFT is ERC721Enumerable, ERC2981 {
         uint256 batchSize
     ) internal virtual override {
         super._beforeTokenTransfer(from, to, tokenId, batchSize);
-        tokenMintRoyaltyInfo[tokenId].receiver = payable(msg.sender);
     }
 }
