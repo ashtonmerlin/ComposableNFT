@@ -20,13 +20,13 @@ contract GameComposableNFT is IComposableNFT, GameComponentNFT, ERC721Holder, ER
         uint slotAssetTokenAmount;
         bool slotFilled;
     }
-    mapping(uint => address) public slotAsset;
+    mapping(uint slotId => address slotAssetAddress) public slotAsset;
     uint[] public slots;
 
     // currentTokenId => slotId => slotAssetTokenId
-    mapping(uint => mapping(uint => uint)) tokenSlotsData;
-    mapping(uint => mapping(uint => uint)) tokenSlotsBalance;
-    mapping(uint => mapping(uint => bool)) tokenSlotsFilled;
+    mapping(uint tokenId => mapping(uint slotId => uint slotAssetTokenId)) tokenSlotsData;
+    mapping(uint tokenId => mapping(uint slotId => uint slotAssetTokenBalance)) tokenSlotsBalance;
+    mapping(uint tokenId => mapping(uint slotId => bool isFilledWithSlotAsset)) tokenSlotsFilled;
 
     mapping (address => bool) public admins;
 
@@ -84,7 +84,6 @@ contract GameComposableNFT is IComposableNFT, GameComponentNFT, ERC721Holder, ER
         require(slotAssetAddress != address(0x0), "Invliad slot id");
 
         if (is1155AssetSlot(slotId)) {
-            // IERC1155(slotAssetAddress).safeTransferFrom(msg.sender, address(this), slotAssetTokenId, amount, "");
             tokenSlotsBalance[tokenId][slotId] += amount;
             if (!tokenSlotsFilled[tokenId][slotId]) {
                 tokenSlotsData[tokenId][slotId] = slotAssetTokenId;
@@ -97,7 +96,6 @@ contract GameComposableNFT is IComposableNFT, GameComponentNFT, ERC721Holder, ER
 
         if (is721AssetSlot(slotId)) {
             require(!tokenSlotsFilled[tokenId][slotId], "Slot already filled");
-            // IERC721(slotAssetAddress).safeTransferFrom(msg.sender, address(this), slotAssetTokenId);
             tokenSlotsData[tokenId][slotId] = slotAssetTokenId;
             tokenSlotsBalance[tokenId][slotId] = 1;
             tokenSlotsFilled[tokenId][slotId] = true;
@@ -117,7 +115,6 @@ contract GameComposableNFT is IComposableNFT, GameComponentNFT, ERC721Holder, ER
         if (is1155AssetSlot(slotId)) {
             emit DetachSlotAsset(tokenId, slotId, tokenSlotsData[tokenId][slotId], tokenSlotsBalance[tokenId][slotId]);
 
-            // IERC1155(slotAssetAddress).safeTransferFrom(address(this), msg.sender, tokenSlotsData[tokenId][slotId], tokenSlotsBalance[tokenId][slotId], "");
             tokenSlotsFilled[tokenId][slotId] = false;
             tokenSlotsBalance[tokenId][slotId] = 0;
             tokenSlotsData[tokenId][slotId] = 0;
@@ -129,7 +126,6 @@ contract GameComposableNFT is IComposableNFT, GameComponentNFT, ERC721Holder, ER
             tokenSlotsFilled[tokenId][slotId] = false;
             tokenSlotsBalance[tokenId][slotId] = 0;
             tokenSlotsData[tokenId][slotId] = 0;
-            // transferFrom(tokenId, msg.sender, slotId, tokenSlotsBalance[tokenId][slotId]);
         }
     }
 
@@ -137,59 +133,6 @@ contract GameComposableNFT is IComposableNFT, GameComponentNFT, ERC721Holder, ER
         detach(tokenId, slotId);
         attachInternal(tokenId, slotId, slotAssetTokenId, amount); 
     }
-
-    // function transferSlotAsset(uint fromTokenId, uint toTokenId, uint slotId, uint amount) external {
-    //     require(msg.sender == ownerOf(fromTokenId), "Not token owner");
-
-    //     if (is1155AssetSlot(slotId)) {
-    //         tokenSlotsBalance[fromTokenId][slotId] -= amount;
-    //         if (tokenSlotsBalance[fromTokenId][slotId] == 0) {
-    //             tokenSlotsFilled[fromTokenId][slotId] = false;
-    //         }
-
-    //         tokenSlotsData[toTokenId][slotId] = tokenSlotsData[fromTokenId][slotId];
-    //         tokenSlotsBalance[toTokenId][slotId] += amount;
-    //         tokenSlotsFilled[toTokenId][slotId] = true;
-    //         return;
-    //     }
-
-    //      if (is721AssetSlot(slotId)) {
-    //         require(!tokenSlotsFilled[toTokenId][slotId], "Slot already filled");
-
-    //         tokenSlotsFilled[fromTokenId][slotId] = false;
-    //         tokenSlotsBalance[fromTokenId][slotId] = 0;
-
-    //         tokenSlotsFilled[toTokenId][slotId] = true;
-    //         tokenSlotsBalance[toTokenId][slotId] = 1;
-    //         tokenSlotsData[toTokenId][slotId] = tokenSlotsData[fromTokenId][slotId];
-    //      }
-    // }
-
-    // function transferFrom(uint fromTokenId, address to, uint slotId, uint amount) public {
-    //     require(msg.sender == ownerOf(fromTokenId), "Not token owner");
-    //     address slotAssetAddress = slotAsset[slotId];
-
-    //     if (is1155AssetSlot(slotId)) {
-    //         tokenSlotsBalance[fromTokenId][slotId] -= amount;
-    //         if (tokenSlotsBalance[fromTokenId][slotId] == 0) {
-    //             tokenSlotsFilled[fromTokenId][slotId] = false;
-    //         }
-
-    //         IERC1155(slotAssetAddress).safeTransferFrom(address(this), to, tokenSlotsData[fromTokenId][slotId], amount, "");
-    //         return;
-    //     }
-
-    //      if (is721AssetSlot(slotId)) {
-    //         require(tokenSlotsFilled[fromTokenId][slotId], "Slot already filled");
-
-    //         uint slotAssetId = tokenSlotsData[fromTokenId][slotId];
-    //         tokenSlotsFilled[fromTokenId][slotId] = false;
-    //         tokenSlotsBalance[fromTokenId][slotId] = 0;
-    //         tokenSlotsData[fromTokenId][slotId] = 0;
-
-    //         IERC721(slotAssetAddress).safeTransferFrom(address(this), to, slotAssetId);
-    //      }
-    // }
 
     function getTokenSlotsInfo(uint tokenId) external view returns (SlotInfo[] memory) {
         SlotInfo[] memory tokenSlotsInfo = new SlotInfo[](slots.length);

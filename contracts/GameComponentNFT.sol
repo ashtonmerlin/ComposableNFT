@@ -7,6 +7,10 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
+/**
+ * @title NFT definition for game component
+ * @author Spike Labs
+ */
 contract GameComponentNFT is ERC721Enumerable, ERC2981 { 
     event UsageFeeUpdated(uint256 tokenId, uint256 oldUsageFee, uint256 newUsageFee);
     event MintTokenRoyaltyFeeUpdated(uint256 tokenId, uint256 oldMintTokenRoyaltyFee, uint256 newMintTokenRoyaltyFee);
@@ -24,10 +28,10 @@ contract GameComponentNFT is ERC721Enumerable, ERC2981 {
     string private _baseTokenURI;
 
     // Optional mapping for token URIs
-    mapping(uint256 => string) private _tokenURIs;
+    mapping(uint256 tokenId => string tokenURI) private _tokenURIs;
     mapping(uint256 => MintRoyaltyInfo) public tokenMintRoyaltyInfo;
-    mapping(uint256 => uint) public usageFee;
-    mapping(address => mapping(uint256 => bool)) private _isUserPaid;
+    mapping(uint256 tokenId => uint256 tokenUsageFee) public usageFee;
+    mapping(address userAccount => mapping(uint256 tokenId => bool hasPaidUsageFee)) private _isUserPaid;
 
     constructor(string memory name, string memory symbol) ERC721(name, symbol) {
     }
@@ -39,16 +43,30 @@ contract GameComponentNFT is ERC721Enumerable, ERC2981 {
         return super.supportsInterface(interfaceId);
     }
 
+    /**
+     * Pay fees to pay the game
+     * @param tokenId The game or game component token id
+     */
     function payToPlay(uint256 tokenId) external payable {
         require(usageFee[tokenId] == msg.value, "Invalid pay");
         Address.sendValue(payable(ownerOf(tokenId)), msg.value);
         _isUserPaid[msg.sender][tokenId] = true;
     }
 
+    /**
+     * Check whether the user has paid the usage fee
+     * @param user Game player
+     * @param tokenId Game or game component token id
+     */
     function isUserPaid(address user, uint256 tokenId) view external returns (bool) {
         return _isUserPaid[user][tokenId];
     }
 
+    /**
+     * Update game usage fee
+     * @param tokenId Game or game component token id
+     * @param newUsageFee Game or game component usage fee
+     */
     function configureUsageFee(uint256 tokenId, uint256 newUsageFee) public {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
 
@@ -59,8 +77,18 @@ contract GameComponentNFT is ERC721Enumerable, ERC2981 {
 
     }
 
+    /**
+     * Mint new game or game component based on existing one
+     * @param _tokenURI Token URI for new game or game component token
+     * @param baseId The game or game component to be minted with
+     * @param mintRoyaltyFee The mint royalty fee for new token
+     * @param marketRoyaltyFraction Royalty setting per ERC2981
+     * @param newUsageFee The game or game component usage fee
+     */
     function mint(string memory _tokenURI, uint256 baseId, uint256 mintRoyaltyFee, uint96 marketRoyaltyFraction, uint256 newUsageFee) external payable {
         if (baseId != 0) {
+            require(tokenMintRoyaltyInfo[baseId].mintAllowed, "Invalid mint base id");
+
             address baseTokenOwner = ownerOf(baseId);
             require(baseTokenOwner != address(0x0));
             MintRoyaltyInfo storage mintRoyaltyInfo = tokenMintRoyaltyInfo[baseId];
@@ -111,6 +139,11 @@ contract GameComponentNFT is ERC721Enumerable, ERC2981 {
         super._setTokenRoyalty(tokenId, receiver, feeNumerator);
     }
 
+    /**
+     * @dev Set mint royalty fee amount for specific NFT
+     * @param tokenId The specific NFT token id
+     * @param newMintRoyaltyFee The royalty fee amount
+     */
     function setMintTokenRoyalty(uint256 tokenId, uint256 newMintRoyaltyFee) public {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
 
@@ -119,6 +152,10 @@ contract GameComponentNFT is ERC721Enumerable, ERC2981 {
         tokenMintRoyaltyInfo[tokenId].mintRoyaltyFee = newMintRoyaltyFee;
     }
 
+    /**
+     * @dev Set to be a mint base or not for specific NFT
+     * @param tokenId The specific NFT token id
+     */
     function toggleMintAllowed(uint256 tokenId) public {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
         tokenMintRoyaltyInfo[tokenId].mintAllowed = !tokenMintRoyaltyInfo[tokenId].mintAllowed;
@@ -126,6 +163,10 @@ contract GameComponentNFT is ERC721Enumerable, ERC2981 {
         emit ToggleTokenMintAllowed(tokenId, tokenMintRoyaltyInfo[tokenId].mintAllowed);
     }
 
+    /**
+     * @dev Return the token list owner by specific user
+     * @param owner The specific user address
+     */
     function balanceOfTokens(address owner) view external returns (uint256[] memory) {
         uint256 tokenNum = balanceOf(owner);
         uint256[] memory ownedTokens = new uint256[](tokenNum);
